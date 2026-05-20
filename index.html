@@ -1111,6 +1111,7 @@ function renderTxBanList(bans,filter){
 $('txBanSIn').addEventListener('input',async function(){
   try{const r=await fetch(BASE+'/txbans',{headers:ah()});const d=await r.json();renderTxBanList(d.bans||[],this.value.toLowerCase());}catch(e){}
 });
+async function loadBanList(){
   const list=$('banList');list.innerHTML='<div style="color:var(--muted);text-align:center;padding:40px;font-size:12px">Chargement...</div>';
   try{const r=await fetch(BASE+'/bans',{headers:ah()});const d=await r.json();renderBanList(d.bans||[]);}
   catch(e){list.innerHTML='<div style="color:var(--danger);text-align:center;padding:40px;font-size:12px">Impossible de charger.</div>';}
