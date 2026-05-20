@@ -1034,6 +1034,45 @@ $('exportALBtn').addEventListener('click',()=>{
   a.download='gnew-action-logs-'+Date.now()+'.txt';a.click();toast('Exporté','success');
 });
 
+async function loadBanList(){
+  const list=$('banList');
+  list.innerHTML='<div style="color:var(--muted);text-align:center;padding:40px;font-size:12px">Chargement...</div>';
+  try{
+    const r=await fetch(BASE+'/bans',{headers:ah()});
+    const d=await r.json();
+    renderBanList(d.bans||[]);
+  }catch(e){
+    list.innerHTML='<div style="color:var(--danger);text-align:center;padding:40px;font-size:12px">Impossible de charger.</div>';
+  }
+}
+
+function renderBanList(bans,filter){
+  filter=filter||'';const list=$('banList');
+  const fil=bans.filter(b=>!filter||(b.targetName&&b.targetName.toLowerCase().includes(filter))||(b.reason&&b.reason.toLowerCase().includes(filter)));
+  if(!fil.length){list.innerHTML='<div style="color:var(--muted);text-align:center;padding:40px;font-size:12px">Aucun joueur banni</div>';return;}
+  list.innerHTML=fil.map(b=>{
+    const exp=b.expiration?new Date(b.expiration*1000).toLocaleDateString('fr-FR'):'Permanent';
+    return '<div class="ban-card2"><div><div class="ban-nm2">'+esc(b.targetName||'Inconnu')+'</div><div class="ban-meta2">Par: <span style="color:var(--accent2)">'+esc(b.author||'—')+'</span> &nbsp;•&nbsp; '+exp+'</div><div class="ban-rsn2">'+esc(b.reason||'—')+'</div>'+(b.targetIds&&b.targetIds.length?'<div style="font-size:10px;color:var(--muted);margin-top:2px;font-family:JetBrains Mono,monospace">'+b.targetIds.slice(0,1).map(esc).join('')+'</div>':'')+'</div><button class="unbtn2" data-id="'+esc(b.actionId||'')+'">Unban</button></div>';
+  }).join('');
+  document.querySelectorAll('#banList .unbtn2').forEach(btn=>btn.addEventListener('click',async()=>{
+    const id=btn.dataset.id;const nm=btn.closest('.ban-card2').querySelector('.ban-nm2').textContent;
+    if(!id)return;
+    showConfirm({icon:'🔓',title:'Débannir',tc:'var(--accent)',desc:'Débannir '+nm+' ?',okTx:'Débannir',okC:'var(--accent)',
+      onOk:async()=>{
+        try{
+          const r=await fetch(BASE+'/unban',{method:'POST',headers:ah(),body:JSON.stringify({banid:id})});
+          const d=await r.json();
+          if(d.ok){addLog2('🔓 UNBAN SQL: '+nm+' (banid: '+id+')');toast('Joueur débanni','success');loadBanList();}
+          else toast('Erreur unban','error');
+        }catch(e){toast('Erreur','error');}
+      }
+    });
+  }));
+}
+$('banSIn').addEventListener('input',async function(){
+  try{const r=await fetch(BASE+'/bans',{headers:ah()});const d=await r.json();renderBanList(d.bans||[],this.value.toLowerCase());}catch(e){}
+});
+
 async function loadTxBanList(){
   const list=$('txBanList');
   list.innerHTML='<div style="color:var(--muted);text-align:center;padding:40px;font-size:12px">Chargement...</div>';
