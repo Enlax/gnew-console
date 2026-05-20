@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GNEW Console</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/otplib@12.0.1/otplib-browser.js"></script>
 <style>
 :root{
   --bg:#0f1117;--sidebar:#161b22;--surface:#1c2128;--panel:#21262d;
@@ -312,11 +313,52 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   </div>
 </div>
 
+<!-- TOTP LOGIN -->
+<div class="overlay hidden" id="totpLoginOv">
+  <div class="card" style="width:360px;text-align:center">
+    <div style="font-size:36px;margin-bottom:12px">🔐</div>
+    <h2 style="margin-bottom:4px">Vérification A2F</h2>
+    <p>Entrez le code Google Authenticator</p>
+    <div class="err-box" id="totpLoginErr">Code invalide.</div>
+    <div class="field"><label>Code à 6 chiffres</label><input type="text" id="totpLoginCode" maxlength="6" placeholder="000000" style="text-align:center;font-size:20px;letter-spacing:6px"/></div>
+    <button class="btn-green" id="totpLoginBtn">Vérifier</button>
+    <button class="btn-gray" id="totpLoginCancel">Annuler</button>
+  </div>
+</div>
+
+<!-- TOTP SETUP -->
+<div class="overlay hidden" id="totpSetupOv">
+  <div class="card" style="width:400px;text-align:center">
+    <div style="font-size:36px;margin-bottom:12px">🔐</div>
+    <h2 style="margin-bottom:4px">Configurer l'A2F</h2>
+    <p>Scannez le QR code avec Google Authenticator</p>
+    <div id="totpQR" style="margin:16px auto;width:180px;height:180px;background:white;display:flex;align-items:center;justify-content:center;border-radius:8px;"></div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:12px;font-family:'JetBrains Mono',monospace;word-break:break-all" id="totpSecretDisplay"></div>
+    <div class="field"><label>Confirmer avec un code</label><input type="text" id="totpSetupCode" maxlength="6" placeholder="000000" style="text-align:center;font-size:18px;letter-spacing:4px"/></div>
+    <div class="err-box" id="totpSetupErr">Code invalide.</div>
+    <button class="btn-green" id="totpSetupConfirmBtn">Activer l'A2F</button>
+    <button class="btn-gray" id="totpSetupCancelBtn">Annuler</button>
+  </div>
+</div>
+
+<!-- A2F MODAL (pour give coins / give caisse) -->
+<div class="overlay hidden" id="a2fOv">
+  <div class="card" style="width:340px;text-align:center">
+    <div style="font-size:32px;margin-bottom:10px">🔐</div>
+    <h2 style="margin-bottom:4px">Confirmation A2F</h2>
+    <p id="a2fDesc">Entrez votre code Google Authenticator pour confirmer cette action.</p>
+    <div class="err-box" id="a2fErr">Code invalide.</div>
+    <div class="field"><label>Code à 6 chiffres</label><input type="text" id="a2fCode" maxlength="6" placeholder="000000" style="text-align:center;font-size:20px;letter-spacing:6px"/></div>
+    <button class="btn-green" id="a2fConfirmBtn">Confirmer</button>
+    <button class="btn-gray" id="a2fCancelBtn">Annuler</button>
+  </div>
+</div>
+
 <!-- LOGIN -->
 <div class="overlay" id="loginOv">
   <div class="card hidden" id="setupCard">
-    <h2>Créer le compte (Sera jamais fini sert a rien je le fais moi meme)</h2>
-    <p></p>
+    <h2>Créer le compte administrateur</h2>
+    <p>Première connexion — ce compte sera le seul à pouvoir en créer d'autres.</p>
     <div class="err-box" id="setupErr"></div>
     <div class="field"><label>Nom d'utilisateur</label><input type="text" id="setupUser" autocomplete="off" placeholder="admin"/></div>
     <div class="field"><label>Mot de passe</label><input type="password" id="setupPass" placeholder="Min. 6 caractères"/></div>
@@ -325,7 +367,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   </div>
   <div class="card hidden" id="loginCard">
     <h2>Connexion</h2>
-    <p>Accédez a GNEW </p>
+    <p>Accédez au dashboard GNEW Console.</p>
     <div class="err-box" id="loginErr">Identifiants incorrects.</div>
     <div class="field"><label>Nom d'utilisateur</label><input type="text" id="loginUser" autocomplete="off" placeholder="username"/></div>
     <div class="field"><label>Mot de passe</label><input type="password" id="loginPass" placeholder="••••••••"/></div>
@@ -393,7 +435,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   <div class="stat-item"><span class="icon">📈</span><span class="stat-val w" id="sPj">0</span><span class="stat-lbl">pic du jour</span><span style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono'" id="sPjt">—</span></div>
   <div class="stat-item"><span class="icon">🏆</span><span class="stat-val" id="sPs">0</span><span class="stat-lbl">pic semaine</span><span style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono'" id="sPsd">—</span></div>
   <div class="stat-item"><span class="icon">⏱</span><span class="stat-val m" id="sUp">—</span><span class="stat-lbl">uptime</span></div>
-  <div class="stats-bar-r"><button class="chart-btn" id="openChart"> Graphique</button></div>
+  <div class="stats-bar-r"><button class="chart-btn" id="openChart">📊 Graphique</button></div>
 </div>
 
 <!-- MAIN -->
@@ -404,8 +446,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
       <div class="sidebar-label">Navigation</div>
       <button class="nav-item active" data-page="consolePage"><span class="ni">›_</span> Live Console</button>
       <button class="nav-item" data-page="playersPage"><span class="ni">👥</span> Joueurs</button>
-      <button class="nav-item ao" data-page="banListPage" style="display:none"><span class="ni"></span> Ban List en cours pas encore fais</button>
-      <button class="nav-item ao" data-page="logsPage" style="display:none"><span class="ni">📋</span> Logs des comptes admin</button>
+      <button class="nav-item ao" data-page="banListPage" style="display:none"><span class="ni">🚫</span> Ban List</button>
+      <button class="nav-item ao" data-page="logsPage" style="display:none"><span class="ni">📋</span> Logs</button>
       <button class="nav-item ao" data-page="accountsPage" style="display:none"><span class="ni">👤</span> Comptes</button>
     </div>
     <div class="sidebar-bottom">
@@ -529,6 +571,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
           <div class="field"><label>Confirmer</label><input type="password" id="pwNew2"/></div>
           <button class="btn-green" id="changePwBtn">Modifier</button>
           <button class="btn-gray" id="backProf">← Retour</button>
+          <div class="sec-t2" style="margin-top:24px">Authentification à deux facteurs</div>
+          <div id="totpStatusDiv" style="font-size:12px;color:var(--muted);margin-bottom:10px"></div>
+          <button class="btn-green" id="setupTotpBtn" style="display:none">Configurer Google Authenticator</button>
+          <button class="btn-gray btn-red" id="disableTotpBtn" style="display:none">Désactiver l'A2F</button>
         </div>
       </div>
     </div>
@@ -544,7 +590,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 function toast(msg,type='success'){const t=$('toast');t.textContent=msg;t.className='toast '+type+' show';setTimeout(()=>t.classList.remove('show'),3000);}
 function ah(){return{'Authorization':'Bearer '+tok,'Content-Type':'application/json'};}
-function pc(p){return p<80?'ppg':p<150?'ppo':'ppb';}
+function ppclass(p){return p<80?'ppg':p<150?'ppo':'ppb';}
 function nowStr(){const d=new Date();return d.toLocaleDateString('fr-FR')+' '+d.toLocaleTimeString('fr-FR');}
 
 let tok=null,user=null,players=[],prevCnt=0;
@@ -560,6 +606,42 @@ let hourlyD=new Array(24).fill(0),hourlyC=new Array(24).fill(0);
 let chartRange='day';
 const DPERMS={console:true,players:true,actions:true,giveitem:false,unbanAll:false,banList:false};
 function hp(p){if(!user)return false;if(user.isAdmin)return true;return user.perms&&user.perms[p]===true;}
+
+// ── TOTP helpers ──
+let _pendingTotpCreds=null;
+let _pendingTotpSecret=null;
+let _pendingA2FAction=null;
+
+function totpGenSecret(){
+  const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let s='';for(let i=0;i<32;i++)s+=chars[Math.floor(Math.random()*32)];
+  return s;
+}
+function totpVerify(secret,code){
+  try{return window.OTPLib&&window.OTPLib.authenticator.verify({token:code,secret});}
+  catch(e){return false;}
+}
+function totpGetSecret(){
+  return user&&user.totpSecret?user.totpSecret:null;
+}
+
+// ── A2F Modal ──
+function requireA2F(desc, onSuccess){
+  if(!user||!user.totpEnabled||!user.totpSecret){onSuccess();return;}
+  _pendingA2FAction=onSuccess;
+  $('a2fDesc').textContent=desc||'Confirmer avec votre code A2F.';
+  $('a2fCode').value='';$('a2fErr').style.display='none';
+  $('a2fOv').classList.remove('hidden');
+  setTimeout(()=>$('a2fCode').focus(),100);
+}
+$('a2fConfirmBtn').addEventListener('click',()=>{
+  const code=$('a2fCode').value.trim();
+  if(!totpVerify(user.totpSecret,code)){$('a2fErr').style.display='block';return;}
+  $('a2fOv').classList.add('hidden');
+  if(_pendingA2FAction){_pendingA2FAction();_pendingA2FAction=null;}
+});
+$('a2fCancelBtn').addEventListener('click',()=>{$('a2fOv').classList.add('hidden');_pendingA2FAction=null;});
+$('a2fCode').addEventListener('keydown',e=>{if(e.key==='Enter')$('a2fConfirmBtn').click();});
 
 // CONFIRM
 function showConfirm(opts){
@@ -656,12 +738,38 @@ $('loginBtn').addEventListener('click',async()=>{
   const u=$('loginUser').value.trim(),p=$('loginPass').value;
   const err=$('loginErr');err.style.display='none';
   try{const r=await fetch(BASE+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});const d=await r.json();
+  if(d.requireTotp){
+    // Besoin TOTP
+    _pendingTotpCreds={username:u,password:p};
+    $('totpLoginCode').value='';$('totpLoginErr').style.display='none';
+    $('loginOv').classList.add('hidden');
+    $('totpLoginOv').classList.remove('hidden');
+    setTimeout(()=>$('totpLoginCode').focus(),100);
+    return;
+  }
   if(d.error){err.style.display='block';return;}
-  tok=d.token;user={username:d.username,isAdmin:d.isAdmin,perms:d.perms||DPERMS};
+  tok=d.token;user={username:d.username,isAdmin:d.isAdmin,perms:d.perms||DPERMS,totpEnabled:d.totpEnabled||false,totpSecret:null};
   sessionStorage.setItem('gt',tok);sessionStorage.setItem('gu',JSON.stringify(user));finishLogin();}
   catch(e){err.style.display='block';}
 });
 $('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click();});
+
+// TOTP login verify
+$('totpLoginBtn').addEventListener('click',async()=>{
+  const code=$('totpLoginCode').value.trim();
+  const err=$('totpLoginErr');err.style.display='none';
+  if(!_pendingTotpCreds)return;
+  try{
+    const r=await fetch(BASE+'/auth/totp-verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._pendingTotpCreds,totpCode:code})});
+    const d=await r.json();
+    if(d.error||!d.ok){err.style.display='block';return;}
+    tok=d.token;user={username:d.username,isAdmin:d.isAdmin,perms:d.perms||DPERMS,totpEnabled:true,totpSecret:null};
+    sessionStorage.setItem('gt',tok);sessionStorage.setItem('gu',JSON.stringify(user));
+    $('totpLoginOv').classList.add('hidden');_pendingTotpCreds=null;finishLogin();
+  }catch(e){err.style.display='block';}
+});
+$('totpLoginCancel').addEventListener('click',()=>{$('totpLoginOv').classList.add('hidden');$('loginOv').classList.remove('hidden');_pendingTotpCreds=null;});
+$('totpLoginCode').addEventListener('keydown',e=>{if(e.key==='Enter')$('totpLoginBtn').click();});
 
 function finishLogin(){
   $('loginOv').classList.add('hidden');
@@ -700,7 +808,57 @@ $('profileBtn').addEventListener('click',()=>{
   const rb=$('profRb');rb.textContent=user.isAdmin?'Admin':'User';rb.className='prof-rb '+(user.isAdmin?'admin':'user');
   $('pwCur').value='';$('pwNew').value='';$('pwNew2').value='';
   $('pwErr').style.display='none';$('pwOk').style.display='none';
+  // TOTP status
+  const ts=$('totpStatusDiv');
+  if(user.totpEnabled){ts.innerHTML='<span style="color:var(--accent)">✓ A2F activé</span>';$('setupTotpBtn').style.display='none';$('disableTotpBtn').style.display='block';}
+  else{ts.innerHTML='<span style="color:var(--muted)">A2F non configuré</span>';$('setupTotpBtn').style.display='block';$('disableTotpBtn').style.display='none';}
   showPage('profilePage');
+});
+
+$('setupTotpBtn').addEventListener('click',()=>{
+  const secret=totpGenSecret();
+  _pendingTotpSecret=secret;
+  const label='GNEW:'+user.username;
+  const url='otpauth://totp/'+encodeURIComponent(label)+'?secret='+secret+'&issuer=GNEW';
+  $('totpSecretDisplay').textContent='Secret: '+secret;
+  // QR code via API gratuite
+  const qrEl=$('totpQR');
+  qrEl.innerHTML='<img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data='+encodeURIComponent(url)+'" style="width:160px;height:160px;border-radius:4px"/>';
+  $('totpSetupCode').value='';$('totpSetupErr').style.display='none';
+  $('totpSetupOv').classList.remove('hidden');
+  setTimeout(()=>$('totpSetupCode').focus(),100);
+});
+
+$('totpSetupConfirmBtn').addEventListener('click',async()=>{
+  const code=$('totpSetupCode').value.trim();
+  const err=$('totpSetupErr');err.style.display='none';
+  if(!totpVerify(_pendingTotpSecret,code)){err.style.display='block';return;}
+  try{
+    const r=await fetch(BASE+'/auth/totp-setup',{method:'POST',headers:ah(),body:JSON.stringify({secret:_pendingTotpSecret})});
+    const d=await r.json();
+    if(d.ok){
+      user.totpEnabled=true;user.totpSecret=_pendingTotpSecret;
+      sessionStorage.setItem('gu',JSON.stringify(user));
+      $('totpSetupOv').classList.add('hidden');_pendingTotpSecret=null;
+      toast('A2F activé !','success');
+      // Refresh profile
+      $('setupTotpBtn').style.display='none';$('disableTotpBtn').style.display='block';
+      $('totpStatusDiv').innerHTML='<span style="color:var(--accent)">✓ A2F activé</span>';
+    }
+  }catch(e){err.textContent='Erreur.';err.style.display='block';}
+});
+$('totpSetupCancelBtn').addEventListener('click',()=>{$('totpSetupOv').classList.add('hidden');_pendingTotpSecret=null;});
+
+$('disableTotpBtn').addEventListener('click',()=>{
+  showConfirm({icon:'🔓',title:'Désactiver l\'A2F',desc:'Êtes-vous sûr de vouloir désactiver l\'authentification à deux facteurs ?',okTx:'Désactiver',
+    onOk:async()=>{
+      await fetch(BASE+'/auth/totp-disable',{method:'POST',headers:ah()});
+      user.totpEnabled=false;user.totpSecret=null;sessionStorage.setItem('gu',JSON.stringify(user));
+      $('setupTotpBtn').style.display='block';$('disableTotpBtn').style.display='none';
+      $('totpStatusDiv').innerHTML='<span style="color:var(--muted)">A2F non configuré</span>';
+      toast('A2F désactivé','success');
+    }
+  });
 });
 $('backProf').addEventListener('click',()=>showPage(prevPage));
 $('changePwBtn').addEventListener('click',async()=>{
@@ -805,9 +963,18 @@ function renderBanList(bans,filter){
   return '<div class="ban-card2"><div><div class="ban-nm2">'+esc(b.targetName||'Inconnu')+'</div><div class="ban-meta2">Par: '+esc(b.author||'—')+' &nbsp;•&nbsp; '+exp+'</div><div class="ban-rsn2">'+esc(b.reason||'—')+'</div>'+(b.targetIds?'<div style="font-size:10px;color:var(--muted);margin-top:2px;font-family:JetBrains Mono,monospace">'+b.targetIds.slice(0,1).map(esc).join('')+'</div>':'')+'</div><button class="unbtn2" data-id="'+esc(b.actionId||'')+'">Unban</button></div>';
   }).join('');
   document.querySelectorAll('.unbtn2').forEach(btn=>btn.addEventListener('click',async()=>{
-    const id=btn.dataset.id;if(!id)return;
-    showConfirm({icon:'🔓',title:'Débannir',tc:'var(--accent)',desc:'Débannir ce joueur ?',okTx:'Débannir',okC:'var(--accent)',
-      onOk:async()=>{try{await fetch(BASE+'/command',{method:'POST',headers:ah(),body:JSON.stringify({command:'unban '+id})});addLog2('🔓 UNBAN: '+btn.closest('.ban-card2').querySelector('.ban-nm2').textContent+' ('+id+')');toast('Joueur débanni','success');loadBanList();}catch(e){toast('Erreur','error');}}});
+    const id=btn.dataset.id;const nm=btn.closest('.ban-card2').querySelector('.ban-nm2').textContent;
+    if(!id)return;
+    showConfirm({icon:'🔓',title:'Débannir',tc:'var(--accent)',desc:'Débannir '+nm+' ?',okTx:'Débannir',okC:'var(--accent)',
+      onOk:async()=>{
+        try{
+          const r=await fetch(BASE+'/unban',{method:'POST',headers:ah(),body:JSON.stringify({banid:id})});
+          const d=await r.json();
+          if(d.ok){addLog2('🔓 UNBAN SQL: '+nm+' (banid: '+id+')');toast('Joueur débanni','success');loadBanList();}
+          else toast('Erreur unban','error');
+        }catch(e){toast('Erreur','error');}
+      }
+    });
   }));
 }
 $('banSIn').addEventListener('input',async function(){try{const r=await fetch(BASE+'/bans',{headers:ah()});const d=await r.json();renderBanList(d.bans||[],this.value.toLowerCase());}catch(e){}});
@@ -842,7 +1009,7 @@ function showPlayerDetail(id){
   const ca=hp('actions');
   $('pdLeft').innerHTML='<button class="pd-back" id="pdBack">← Joueurs</button>'
   +'<div class="pd-header"><div class="pd-av2">'+String(p.id).padStart(2,'0')+'</div><div><div class="pd-n">'+esc(p.name||'?')+'</div><div class="pd-sub">ID: '+p.id+' &nbsp;•&nbsp; Ping: <span style="color:'+(p.ping<80?'var(--accent)':p.ping<150?'var(--warn)':'var(--danger)')+'">'+p.ping+'ms</span></div></div></div>'
-  +(ca?'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"><button class="pda h" id="bH">❤ Heal</button><button class="pda k" id="bK">⚡ Kick</button><button class="pda u" id="bU">🔓 Untig</button><button class="pda r" id="bR">💊 Revive</button><button class="pda rg" id="bRg">📋 Register</button><button class="pda c" id="bC">💰 Give Coins</button></div>':'<div style="color:var(--muted);font-size:12px;padding:10px;background:var(--panel);border-radius:6px;border:1px solid var(--border);margin-bottom:12px">Aucune permission d\'action.</div>')
+  +(ca?'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"><button class="pda h" id="bH">❤ Heal</button><button class="pda k" id="bK">⚡ Kick</button><button class="pda u" id="bU">🔓 Untig</button><button class="pda r" id="bR">💊 Revive</button><button class="pda rg" id="bRg">📋 Register</button><button class="pda c" id="bC">💰 Give Coins</button></div><div style="margin-bottom:16px"><button class="pda" id="bSG" style="color:#a78bfa;border-color:rgba(167,139,250,0.4);background:rgba(167,139,250,0.08);width:100%">🎖 Setgroup</button></div>':'<div style="color:var(--muted);font-size:12px;padding:10px;background:var(--panel);border-radius:6px;border:1px solid var(--border);margin-bottom:12px">Aucune permission d\'action.</div>')
   +'<div class="pd-table"><div class="pd-tr"><span class="pd-k">Nom</span><span class="pd-v">'+esc(p.name||'—')+'</span></div><div class="pd-tr"><span class="pd-k">ID</span><span class="pd-v">'+p.id+'</span></div><div class="pd-tr"><span class="pd-k">Ping</span><span class="pd-v" style="color:'+(p.ping<80?'var(--accent)':p.ping<150?'var(--warn)':'var(--danger)')+'">'+p.ping+'ms</span></div>'
   +irows.map(r=>'<div class="pd-tr"><span class="pd-k" style="color:'+r.c+'">'+r.l+'</span><span class="pd-v">'+esc(r.v)+'</span></div>').join('')+'</div>';
   $('pdBack').addEventListener('click',showPlayersList);
@@ -853,6 +1020,7 @@ function showPlayerDetail(id){
     $('bR').addEventListener('click',()=>doDirect('revive '+p.id,'💊 REVIVE',p.id,p.name));
     $('bRg').addEventListener('click',()=>doDirect('register '+p.id,'📋 REGISTER',p.id,p.name));
     $('bC').addEventListener('click',()=>openAction('coins',p.id,p.name));
+    $('bSG').addEventListener('click',()=>openSetgroup(p.id,p.name));
   }
 }
 
@@ -867,15 +1035,59 @@ $('aCo').addEventListener('click',async()=>{
   if(!curAction)return;
   const {type,pid,pname}=curAction;const v1=$('ai1')?.value?.trim()||'';const err=$('aErr');err.style.display='none';
   if(type==='kick'){const reason=v1||'Aucune raison';try{await sendAct('kick',pid,{reason});addLog2('⚡ KICK: '+pname+' (#'+pid+') — '+reason,pid,pname);toast(''+pname+' kické','success');}catch(e){}}
-  else if(type==='coins'){if(!v1||isNaN(v1)){err.textContent='Quantité invalide.';err.style.display='block';return;}await sendRaw('gnewid '+pid+' '+v1);addLog2('💰 GIVE COINS: '+pname+' (#'+pid+') — '+v1+'coins',pid,pname);toast(v1+' coins → '+pname,'success');}
+  else if(type==='coins'){
+    if(!v1||isNaN(v1)){err.textContent='Quantité invalide.';err.style.display='block';return;}
+    $('actionOv').classList.add('hidden');curAction=null;
+    requireA2F('Confirmer Give Coins: '+v1+' coins → '+pname,async()=>{
+      await sendRaw('gnewid '+pid+' '+v1);
+      addLog2('💰 GIVE COINS: '+pname+' (#'+pid+') — '+v1+' coins',pid,pname);
+      toast(v1+' coins → '+pname,'success');
+    });
+    return;
+  }
   $('actionOv').classList.add('hidden');curAction=null;
 });
 $('aCa').addEventListener('click',()=>{$('actionOv').classList.add('hidden');curAction=null;});
-async function doHeal(id,name){try{await sendAct('heal',id);addLog2('❤ HEAL: '+name+' (#'+id+')',id,name);toast(name+' soigné','success');}catch(e){}}
+async function doHeal(id,name){try{await sendAct('heal',id);addLog2('❤ HEAL: '+name+' (#'+id+')',id,name);toast(name+' soigné','success');}catch(e){toast('Erreur heal','error');}}
 async function doDirect(cmd,label,tid,tn){await sendRaw(cmd);addLog2(label+': '+tn+' (#'+tid+')',tid,tn);toast(label+' → '+tn,'success');}
 async function sendAct(action,pid,extra){const r=await fetch(BASE+'/action',{method:'POST',headers:ah(),body:JSON.stringify({action,playerId:pid,...(extra||{})})});const d=await r.json();if(d.error)throw new Error(d.error);return d;}
 async function sendRaw(cmd){try{await fetch(BASE+'/command',{method:'POST',headers:ah(),body:JSON.stringify({command:cmd})});}catch(e){toast('Erreur commande','error');}}
-$('gBtn').addEventListener('click',async()=>{const c=$('gSel').value,q=$('gQty').value||'1';await sendRaw('giveitemall '+c+' '+q);addLog2('📦 GIVEITEMALL: '+c+' x'+q);addCLog('CMD','rcon','> giveitemall '+c+' '+q,'sys');toast(c+' x'+q+' envoyé','success');});
+
+function openSetgroup(pid,pname){
+  showConfirm({icon:'🎖',title:'Setgroup — '+pname,tc:'var(--accent2)',desc:'.',okTx:'Fermer',okC:'var(--panel)',onOk:()=>{}});
+  setTimeout(()=>{
+    $('cDe').innerHTML='Choisir un grade pour <b style="color:var(--text)">'+esc(pname)+'</b> (ID: '+pid+') :';
+    $('cWa').style.display='none';$('cOk').style.display='none';
+    const grades=[{n:'PermNoir',c:'#aaa'},{n:'PermRouge',c:'#f85149'},{n:'PermBleu',c:'#58a6ff'},{n:'PermJaune',c:'#d29922'},{n:'PermOrange',c:'#f0883e'}];
+    if(document.getElementById('sgBtns'))document.getElementById('sgBtns').remove();
+    const btns=document.createElement('div');btns.id='sgBtns';
+    btns.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px';
+    grades.forEach(g=>{
+      const b=document.createElement('button');b.textContent=g.n;
+      b.style.cssText='padding:10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid '+g.c+';color:'+g.c+';background:transparent;transition:all 0.15s';
+      b.addEventListener('mouseenter',()=>b.style.background='rgba(255,255,255,0.05)');
+      b.addEventListener('mouseleave',()=>b.style.background='transparent');
+      b.addEventListener('click',async()=>{
+        $('confirmOv').classList.add('hidden');
+        await sendAct('setgroup',pid,{group:g.n});
+        addLog2('🎖 SETGROUP: '+pname+' (#'+pid+') → '+g.n,pid,pname);
+        toast('Grade '+g.n+' → '+pname,'success');
+      });
+      btns.appendChild(b);
+    });
+    $('cDe').after(btns);
+  },10);
+}
+
+$('gBtn').addEventListener('click',()=>{
+  const c=$('gSel').value,q=$('gQty').value||'1';
+  requireA2F('Confirmer GiveItemAll: '+c+' x'+q,async()=>{
+    await sendRaw('giveitemall '+c+' '+q);
+    addLog2('📦 GIVEITEMALL: '+c+' x'+q);
+    addCLog('CMD','rcon','> giveitemall '+c+' '+q,'sys');
+    toast(c+' x'+q+' envoyé','success');
+  });
+});
 $('unbanAllBtn').addEventListener('click',()=>{showConfirm({icon:'🔓',title:'Unban All',desc:'Débannir tous les joueurs bannis ?',warn:'⚠️ Action irréversible.',okTx:'Débannir tout',onOk:async()=>{await sendRaw('waveshield unban all');await sendRaw('unban all');addLog2('🔓 UNBAN ALL');toast('Unban All exécuté','success');}});});
 function setStatus(online){connected=online;$('sDot').className='sdot'+(online?' on':'');$('sLabel').textContent=online?'En ligne':'Hors ligne';$('siStat').textContent=online?'En ligne':'Hors ligne';$('siStat').style.color=online?'var(--accent)':'var(--danger)';if(online&&!startTime){startTime=Date.now();startUptime();}}
 function addCLog(level,source,msg,type){if(!type)type=level==='ERR'?'err':level==='WARN'?'warn':level==='SYS'?'sys':level==='CHAT'?'chat':'info';const area=$('logArea'),now2=new Date();const time=String(now2.getHours()).padStart(2,'0')+':'+String(now2.getMinutes()).padStart(2,'0')+':'+String(now2.getSeconds()).padStart(2,'0');const div=document.createElement('div');div.className='ll log-type-'+type;const s=$('searchIn').value.toLowerCase();if((!activeF.has('all')&&!activeF.has(type))||(s&&!(msg+source).toLowerCase().includes(s)))div.classList.add('hidden');const mc=type==='err'?'em':type==='warn'?'wm':type==='sys'?'sm':type==='chat'?'cm':'';const clean=String(msg).replace(/\^[0-9]/g,'');div.innerHTML='<span class="ll-t">'+time+'</span><span class="ll-l lv-'+type+'">'+level+'</span><span class="ll-s">['+esc(source)+']</span><span class="ll-m '+mc+'">'+esc(clean)+'</span>';area.appendChild(div);if(area.querySelectorAll('.ll').length>3000)area.querySelector('.ll').remove();if(autoScroll)area.scrollTop=area.scrollHeight;}
