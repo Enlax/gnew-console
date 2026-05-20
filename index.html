@@ -5,7 +5,51 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GNEW Console</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/otplib@12.0.1/otplib-browser.js"></script>
+<script>
+// TOTP pur JS (RFC 6238)
+const TOTP = {
+  base32decode(s) {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    s = s.toUpperCase().replace(/=+$/, '');
+    let bits = 0, val = 0;
+    const bytes = [];
+    for (const c of s) {
+      const idx = alphabet.indexOf(c);
+      if (idx === -1) continue;
+      val = (val << 5) | idx;
+      bits += 5;
+      if (bits >= 8) { bits -= 8; bytes.push((val >> bits) & 0xff); }
+    }
+    return new Uint8Array(bytes);
+  },
+  async hmacSha1(keyBytes, msgBytes) {
+    const key = await crypto.subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
+    const sig = await crypto.subtle.sign('HMAC', key, msgBytes);
+    return new Uint8Array(sig);
+  },
+  intToBytes(n) {
+    const b = new Uint8Array(8);
+    for (let i = 7; i >= 0; i--) { b[i] = n & 0xff; n = Math.floor(n / 256); }
+    return b;
+  },
+  async generate(secret, window = 0) {
+    const key = this.base32decode(secret);
+    const counter = Math.floor(Date.now() / 1000 / 30) + window;
+    const msg = this.intToBytes(counter);
+    const hmac = await this.hmacSha1(key, msg);
+    const offset = hmac[19] & 0xf;
+    const code = ((hmac[offset] & 0x7f) << 24 | hmac[offset+1] << 16 | hmac[offset+2] << 8 | hmac[offset+3]) % 1000000;
+    return String(code).padStart(6, '0');
+  },
+  async verify(secret, token) {
+    for (const w of [-1, 0, 1]) {
+      const code = await this.generate(secret, w);
+      if (code === token) return true;
+    }
+    return false;
+  }
+};
+</script>
 <style>
 :root{
   --bg:#0f1117;--sidebar:#161b22;--surface:#1c2128;--panel:#21262d;
@@ -617,12 +661,9 @@ function totpGenSecret(){
   let s='';for(let i=0;i<32;i++)s+=chars[Math.floor(Math.random()*32)];
   return s;
 }
-function totpVerify(secret,code){
-  try{return window.OTPLib&&window.OTPLib.authenticator.verify({token:code,secret});}
+async function totpVerify(secret,code){
+  try{return await TOTP.verify(secret,code);}
   catch(e){return false;}
-}
-function totpGetSecret(){
-  return user&&user.totpSecret?user.totpSecret:null;
 }
 
 // ── A2F Modal ──
@@ -634,9 +675,10 @@ function requireA2F(desc, onSuccess){
   $('a2fOv').classList.remove('hidden');
   setTimeout(()=>$('a2fCode').focus(),100);
 }
-$('a2fConfirmBtn').addEventListener('click',()=>{
+$('a2fConfirmBtn').addEventListener('click',async()=>{
   const code=$('a2fCode').value.trim();
-  if(!totpVerify(user.totpSecret,code)){$('a2fErr').style.display='block';return;}
+  const valid=await totpVerify(user.totpSecret,code);
+  if(!valid){$('a2fErr').style.display='block';return;}
   $('a2fOv').classList.add('hidden');
   if(_pendingA2FAction){_pendingA2FAction();_pendingA2FAction=null;}
 });
@@ -759,11 +801,14 @@ $('totpLoginBtn').addEventListener('click',async()=>{
   const code=$('totpLoginCode').value.trim();
   const err=$('totpLoginErr');err.style.display='none';
   if(!_pendingTotpCreds)return;
+  // Le serveur valide côté Lua (il fait confiance à la validation JS)
+  // On envoie username+password+code, le serveur vérifie juste que le compte existe
   try{
     const r=await fetch(BASE+'/auth/totp-verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({..._pendingTotpCreds,totpCode:code})});
     const d=await r.json();
     if(d.error||!d.ok){err.style.display='block';return;}
-    tok=d.token;user={username:d.username,isAdmin:d.isAdmin,perms:d.perms||DPERMS,totpEnabled:true,totpSecret:null};
+    tok=d.token;
+    user={username:d.username,isAdmin:d.isAdmin,perms:d.perms||DPERMS,totpEnabled:true,totpSecret:d.totpSecret||null};
     sessionStorage.setItem('gt',tok);sessionStorage.setItem('gu',JSON.stringify(user));
     $('totpLoginOv').classList.add('hidden');_pendingTotpCreds=null;finishLogin();
   }catch(e){err.style.display='block';}
@@ -832,7 +877,8 @@ $('setupTotpBtn').addEventListener('click',()=>{
 $('totpSetupConfirmBtn').addEventListener('click',async()=>{
   const code=$('totpSetupCode').value.trim();
   const err=$('totpSetupErr');err.style.display='none';
-  if(!totpVerify(_pendingTotpSecret,code)){err.style.display='block';return;}
+  const valid=await totpVerify(_pendingTotpSecret,code);
+  if(!valid){err.style.display='block';return;}
   try{
     const r=await fetch(BASE+'/auth/totp-setup',{method:'POST',headers:ah(),body:JSON.stringify({secret:_pendingTotpSecret})});
     const d=await r.json();
@@ -841,7 +887,6 @@ $('totpSetupConfirmBtn').addEventListener('click',async()=>{
       sessionStorage.setItem('gu',JSON.stringify(user));
       $('totpSetupOv').classList.add('hidden');_pendingTotpSecret=null;
       toast('A2F activé !','success');
-      // Refresh profile
       $('setupTotpBtn').style.display='none';$('disableTotpBtn').style.display='block';
       $('totpStatusDiv').innerHTML='<span style="color:var(--accent)">✓ A2F activé</span>';
     }
