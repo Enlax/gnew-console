@@ -1103,7 +1103,7 @@ function openSetgroup(pid,pname){
   setTimeout(()=>{
     $('cDe').innerHTML='Choisir un grade pour <b style="color:var(--text)">'+esc(pname)+'</b> (ID: '+pid+') :';
     $('cWa').style.display='none';$('cOk').style.display='none';
-    const grades=[{n:'PermNoir',c:'#aaa'},{n:'PermRouge',c:'#f85149'},{n:'PermBleu',c:'#58a6ff'},{n:'PermJaune',c:'#d29922'},{n:'PermOrange',c:'#f0883e'}];
+    const grades=[{n:'PermNoir',c:'#aaa'},{n:'PermRouge',c:'#f85149'},{n:'PermBleu',c:'#58a6ff'},{n:'PermJaune',c:'#d29922'},{n:'PermOrange',c:'#f0883e'},{n:'user',c:'#7d8590'}];
     if(document.getElementById('sgBtns'))document.getElementById('sgBtns').remove();
     const btns=document.createElement('div');btns.id='sgBtns';
     btns.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px';
@@ -1114,7 +1114,7 @@ function openSetgroup(pid,pname){
       b.addEventListener('mouseleave',()=>b.style.background='transparent');
       b.addEventListener('click',async()=>{
         $('confirmOv').classList.add('hidden');
-        await sendAct('setgroup',pid,{group:g.n});
+        await sendRaw('setgroup '+g.n+' '+pid);
         addLog2('🎖 SETGROUP: '+pname+' (#'+pid+') → '+g.n,pid,pname);
         toast('Grade '+g.n+' → '+pname,'success');
       });
