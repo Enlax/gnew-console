@@ -490,7 +490,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
       <div class="sidebar-label">Navigation</div>
       <button class="nav-item active" data-page="consolePage"><span class="ni">›_</span> Live Console</button>
       <button class="nav-item" data-page="playersPage"><span class="ni">👥</span> Joueurs</button>
-      <button class="nav-item ao" data-page="banListPage" style="display:none"><span class="ni">🚫</span> Ban List</button>
+      <button class="nav-item ao" data-page="banListPage" style="display:none"><span class="ni">🚫</span> Ban List SQL</button>
+      <button class="nav-item ao" data-page="txBanListPage" style="display:none"><span class="ni">🔨</span> Bans txAdmin</button>
       <button class="nav-item ao" data-page="logsPage" style="display:none"><span class="ni">📋</span> Logs</button>
       <button class="nav-item ao" data-page="accountsPage" style="display:none"><span class="ni">👤</span> Comptes</button>
     </div>
@@ -571,6 +572,15 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
       <div id="plDetailView" style="display:none;flex:1;overflow:hidden">
         <div class="pd-page" id="pdLeft"></div>
       </div>
+    </div>
+
+    <!-- BAN LIST TXADMIN -->
+    <div class="page" id="txBanListPage">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;color:var(--muted);display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <span>🔨</span> Bans txAdmin
+      </div>
+      <div class="sbar2"><span>🔍</span><input type="text" class="sin2" id="txBanSIn" placeholder="Rechercher..."/></div>
+      <div style="flex:1;overflow-y:auto;padding:12px" id="txBanList"><div style="color:var(--muted);text-align:center;padding:40px;font-size:12px">Chargement...</div></div>
     </div>
 
     <!-- BAN LIST -->
@@ -868,6 +878,7 @@ function showPage(id){
   if(id==='logsPage'){window._lA=null;renderLogs();}
   if(id==='playersPage')showPlayersList();
   if(id==='banListPage')loadBanList();
+  if(id==='txBanListPage')loadTxBanList();
 }
 document.querySelectorAll('.nav-item[data-page]').forEach(btn=>btn.addEventListener('click',()=>showPage(btn.dataset.page)));
 
@@ -1023,8 +1034,44 @@ $('exportALBtn').addEventListener('click',()=>{
   a.download='gnew-action-logs-'+Date.now()+'.txt';a.click();toast('Exporté','success');
 });
 
-// BAN LIST
-async function loadBanList(){
+async function loadTxBanList(){
+  const list=$('txBanList');
+  list.innerHTML='<div style="color:var(--muted);text-align:center;padding:40px;font-size:12px">Chargement...</div>';
+  try{
+    const r=await fetch(BASE+'/txbans',{headers:ah()});
+    const d=await r.json();
+    renderTxBanList(d.bans||[]);
+  }catch(e){
+    list.innerHTML='<div style="color:var(--danger);text-align:center;padding:40px;font-size:12px">Impossible de charger les bans txAdmin.</div>';
+  }
+}
+
+function renderTxBanList(bans,filter){
+  filter=filter||'';const list=$('txBanList');
+  const fil=bans.filter(b=>!filter||(b.targetName&&b.targetName.toLowerCase().includes(filter))||(b.reason&&b.reason.toLowerCase().includes(filter)));
+  if(!fil.length){list.innerHTML='<div style="color:var(--muted);text-align:center;padding:40px;font-size:12px">Aucun joueur banni</div>';return;}
+  list.innerHTML=fil.map(b=>{
+    const exp=b.expiration?new Date(b.expiration*1000).toLocaleDateString('fr-FR'):'Permanent';
+    return '<div class="ban-card2"><div><div class="ban-nm2">'+esc(b.targetName||'Inconnu')+'</div><div class="ban-meta2">Par: <span style="color:var(--accent2)">'+esc(b.author||'—')+'</span> &nbsp;•&nbsp; '+exp+'</div><div class="ban-rsn2">'+esc(b.reason||'—')+'</div>'+(b.targetIds&&b.targetIds.length?'<div style="font-size:10px;color:var(--muted);margin-top:2px;font-family:JetBrains Mono,monospace">'+b.targetIds.slice(0,1).map(esc).join('')+'</div>':'')+'</div><button class="unbtn2" data-id="'+esc(b.actionId||'')+'">Unban</button></div>';
+  }).join('');
+  document.querySelectorAll('#txBanList .unbtn2').forEach(btn=>btn.addEventListener('click',async()=>{
+    const id=btn.dataset.id;const nm=btn.closest('.ban-card2').querySelector('.ban-nm2').textContent;
+    if(!id)return;
+    showConfirm({icon:'🔓',title:'Débannir (txAdmin)',tc:'var(--accent)',desc:'Débannir '+nm+' de txAdmin ?',okTx:'Débannir',okC:'var(--accent)',
+      onOk:async()=>{
+        try{
+          await fetch(BASE+'/command',{method:'POST',headers:ah(),body:JSON.stringify({command:'unban '+id})});
+          addLog2('🔓 UNBAN txAdmin: '+nm+' ('+id+')');
+          toast('Joueur débanni (txAdmin)','success');
+          loadTxBanList();
+        }catch(e){toast('Erreur','error');}
+      }
+    });
+  }));
+}
+$('txBanSIn').addEventListener('input',async function(){
+  try{const r=await fetch(BASE+'/txbans',{headers:ah()});const d=await r.json();renderTxBanList(d.bans||[],this.value.toLowerCase());}catch(e){}
+});
   const list=$('banList');list.innerHTML='<div style="color:var(--muted);text-align:center;padding:40px;font-size:12px">Chargement...</div>';
   try{const r=await fetch(BASE+'/bans',{headers:ah()});const d=await r.json();renderBanList(d.bans||[]);}
   catch(e){list.innerHTML='<div style="color:var(--danger);text-align:center;padding:40px;font-size:12px">Impossible de charger.</div>';}
