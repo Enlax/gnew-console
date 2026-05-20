@@ -1099,29 +1099,40 @@ async function sendAct(action,pid,extra){const r=await fetch(BASE+'/action',{met
 async function sendRaw(cmd){try{await fetch(BASE+'/command',{method:'POST',headers:ah(),body:JSON.stringify({command:cmd})});}catch(e){toast('Erreur commande','error');}}
 
 function openSetgroup(pid,pname){
-  showConfirm({icon:'🎖',title:'Setgroup — '+pname,tc:'var(--accent2)',desc:'.',okTx:'Fermer',okC:'var(--panel)',onOk:()=>{}});
-  setTimeout(()=>{
-    $('cDe').innerHTML='Choisir un grade pour <b style="color:var(--text)">'+esc(pname)+'</b> (ID: '+pid+') :';
-    $('cWa').style.display='none';$('cOk').style.display='none';
-    const grades=[{n:'PermNoir',c:'#aaa'},{n:'PermRouge',c:'#f85149'},{n:'PermBleu',c:'#58a6ff'},{n:'PermJaune',c:'#d29922'},{n:'PermOrange',c:'#f0883e'},{n:'user',c:'#7d8590'}];
-    if(document.getElementById('sgBtns'))document.getElementById('sgBtns').remove();
-    const btns=document.createElement('div');btns.id='sgBtns';
-    btns.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px';
-    grades.forEach(g=>{
-      const b=document.createElement('button');b.textContent=g.n;
-      b.style.cssText='padding:10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid '+g.c+';color:'+g.c+';background:transparent;transition:all 0.15s';
-      b.addEventListener('mouseenter',()=>b.style.background='rgba(255,255,255,0.05)');
-      b.addEventListener('mouseleave',()=>b.style.background='transparent');
-      b.addEventListener('click',async()=>{
-        $('confirmOv').classList.add('hidden');
-        await sendRaw('setgroup '+g.n+' '+pid);
-        addLog2('🎖 SETGROUP: '+pname+' (#'+pid+') → '+g.n,pid,pname);
-        toast('Grade '+g.n+' → '+pname,'success');
-      });
-      btns.appendChild(b);
+  // Modal séparé pour éviter le conflit avec confirmOv
+  const existing=document.getElementById('sgModal');
+  if(existing)existing.remove();
+  const grades=[{n:'PermNoir',c:'#aaa'},{n:'PermRouge',c:'#f85149'},{n:'PermBleu',c:'#58a6ff'},{n:'PermJaune',c:'#d29922'},{n:'PermOrange',c:'#f0883e'},{n:'user',c:'#7d8590'}];
+  const modal=document.createElement('div');
+  modal.id='sgModal';
+  modal.className='overlay';
+  modal.style.zIndex='600';
+  modal.innerHTML=`
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:24px;width:360px;text-align:center">
+      <div style="font-size:32px;margin-bottom:10px">🎖</div>
+      <div style="font-size:15px;font-weight:600;color:var(--accent2);margin-bottom:6px">Setgroup</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px">Choisir un grade pour <b style="color:var(--text)">${esc(pname)}</b> (ID: ${pid})</div>
+      <div id="sgGrades" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px"></div>
+      <button id="sgClose" class="btn-gray">Annuler</button>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('sgClose').addEventListener('click',()=>modal.remove());
+  const grid=document.getElementById('sgGrades');
+  grades.forEach(g=>{
+    const b=document.createElement('button');
+    b.textContent=g.n;
+    b.style.cssText='padding:10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid '+g.c+';color:'+g.c+';background:transparent;transition:all 0.15s';
+    b.addEventListener('mouseenter',()=>b.style.background='rgba(255,255,255,0.05)');
+    b.addEventListener('mouseleave',()=>b.style.background='transparent');
+    b.addEventListener('click',async()=>{
+      modal.remove();
+      // Ordre correct : setgroup id grade
+      await sendRaw('setgroup '+pid+' '+g.n);
+      addLog2('🎖 SETGROUP: '+pname+' (#'+pid+') → '+g.n,pid,pname);
+      toast('Grade '+g.n+' → '+pname,'success');
     });
-    $('cDe').after(btns);
-  },10);
+    grid.appendChild(b);
+  });
 }
 
 $('gBtn').addEventListener('click',()=>{
