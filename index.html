@@ -401,8 +401,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 <!-- LOGIN -->
 <div class="overlay" id="loginOv">
   <div class="card hidden" id="setupCard">
-    <h2>oublies je les creer moi meme donc sert a rien</h2>
-    <p></p>
+    <h2>Créer le compte administrateur</h2>
+    <p>Première connexion — ce compte sera le seul à pouvoir en créer d'autres.</p>
     <div class="err-box" id="setupErr"></div>
     <div class="field"><label>Nom d'utilisateur</label><input type="text" id="setupUser" autocomplete="off" placeholder="admin"/></div>
     <div class="field"><label>Mot de passe</label><input type="password" id="setupPass" placeholder="Min. 6 caractères"/></div>
@@ -824,6 +824,13 @@ function finishLogin(){
   $('uNm').textContent=user.username;
   $('uAv').textContent=user.username[0].toUpperCase();
   if(user.isAdmin)document.querySelectorAll('.ao').forEach(el=>el.style.display='');
+  // Affiche les onglets selon les permissions même pour les non-admins
+  if(!user.isAdmin){
+    if(hp('banList'))document.querySelector('[data-page="banListPage"]').style.display='';
+    if(user.perms&&user.perms.isAdmin===false){
+      // Logs et Comptes restent cachés pour les non-admins
+    }
+  }
   if(!hp('players')){document.querySelector('[data-page="playersPage"]').style.display='none';$('playersRightPanel').style.display='none';}
   if(!hp('banList'))document.querySelector('[data-page="banListPage"]').style.display='none';
   if(!hp('console'))$('cmdSection').style.display='none';
