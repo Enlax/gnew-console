@@ -830,7 +830,31 @@ function finishLogin(){
   if(!hp('giveitem')&&!hp('unbanAll'))$('quickBar').style.display='none';
   else{if(!hp('giveitem')){[$('gSel'),$('gQty'),$('gBtn')].forEach(el=>el.style.display='none');}if(!hp('unbanAll'))$('unbanAllBtn').style.display='none';}
   startPolling();if(user.isAdmin)loadActionLogs();
-}
+
+  // Force A2F setup si pas encore configuré
+  if(!user.totpEnabled){
+    setTimeout(()=>{
+      const secret=totpGenSecret();
+      _pendingTotpSecret=secret;
+      const label='GNEW:'+user.username;
+      const url='otpauth://totp/'+encodeURIComponent(label)+'?secret='+secret+'&issuer=GNEW';
+      $('totpSecretDisplay').textContent='Secret: '+secret;
+      $('totpQR').innerHTML='<img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data='+encodeURIComponent(url)+'" style="width:160px;height:160px;border-radius:4px"/>';
+      $('totpSetupCode').value='';$('totpSetupErr').style.display='none';
+      // Cache le bouton annuler — A2F obligatoire
+      $('totpSetupCancelBtn').style.display='none';
+      // Ajoute un message d'avertissement
+      if(!document.getElementById('totpForceNotice')){
+        const notice=document.createElement('div');
+        notice.id='totpForceNotice';
+        notice.style.cssText='background:rgba(248,81,73,0.1);border:1px solid rgba(248,81,73,0.3);border-radius:6px;padding:10px;font-size:11px;color:var(--danger);margin-bottom:12px;text-align:center';
+        notice.textContent='⚠️ L\'A2F est obligatoire sur ce dashboard. Configurez Google Authenticator pour continuer.';
+        $('totpSetupOv').querySelector('.card').insertBefore(notice,$('totpQR'));
+      }
+      $('totpSetupOv').classList.remove('hidden');
+      setTimeout(()=>$('totpSetupCode').focus(),200);
+    },600);
+  }
 $('logoutBtn').addEventListener('click',()=>{sessionStorage.clear();location.reload();});
 
 // NAVIGATION
@@ -861,6 +885,8 @@ $('profileBtn').addEventListener('click',()=>{
 });
 
 $('setupTotpBtn').addEventListener('click',()=>{
+  $('totpSetupCancelBtn').style.display='block'; // Visible depuis profil
+  if(document.getElementById('totpForceNotice'))document.getElementById('totpForceNotice').remove();
   const secret=totpGenSecret();
   _pendingTotpSecret=secret;
   const label='GNEW:'+user.username;
@@ -886,6 +912,8 @@ $('totpSetupConfirmBtn').addEventListener('click',async()=>{
       user.totpEnabled=true;user.totpSecret=_pendingTotpSecret;
       sessionStorage.setItem('gu',JSON.stringify(user));
       $('totpSetupOv').classList.add('hidden');_pendingTotpSecret=null;
+      $('totpSetupCancelBtn').style.display='block';
+      if(document.getElementById('totpForceNotice'))document.getElementById('totpForceNotice').remove();
       toast('A2F activé !','success');
       $('setupTotpBtn').style.display='none';$('disableTotpBtn').style.display='block';
       $('totpStatusDiv').innerHTML='<span style="color:var(--accent)">✓ A2F activé</span>';
